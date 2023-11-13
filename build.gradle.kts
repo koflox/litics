@@ -14,9 +14,10 @@ buildscript {
 }
 
 plugins {
-    kotlin("jvm") version "1.6.0" apply false
-    kotlin("multiplatform") version "1.6.0" apply false
-    kotlin("plugin.serialization") version "1.6.0" apply false
+    val kotlinVersion = "1.8.0"
+    kotlin("jvm") version kotlinVersion apply false
+    kotlin("multiplatform") version kotlinVersion apply false
+    kotlin("plugin.serialization") version kotlinVersion apply false
 }
 
 allprojects {

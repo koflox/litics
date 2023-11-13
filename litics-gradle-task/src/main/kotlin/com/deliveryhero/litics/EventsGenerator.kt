@@ -1,26 +1,13 @@
 package com.deliveryhero.litics
 
 import com.charleskorn.kaml.Yaml
-import com.squareup.kotlinpoet.ARRAY
-import com.squareup.kotlinpoet.ClassName
-import com.squareup.kotlinpoet.CodeBlock
-import com.squareup.kotlinpoet.FileSpec
-import com.squareup.kotlinpoet.FunSpec
-import com.squareup.kotlinpoet.KModifier
+import com.squareup.kotlinpoet.*
 import com.squareup.kotlinpoet.KModifier.ABSTRACT
 import com.squareup.kotlinpoet.KModifier.OVERRIDE
-import com.squareup.kotlinpoet.MemberName
-import com.squareup.kotlinpoet.ParameterSpec
-import com.squareup.kotlinpoet.ParameterizedTypeName
 import com.squareup.kotlinpoet.ParameterizedTypeName.Companion.parameterizedBy
-import com.squareup.kotlinpoet.PropertySpec
-import com.squareup.kotlinpoet.STRING
-import com.squareup.kotlinpoet.TypeSpec
-import com.squareup.kotlinpoet.buildCodeBlock
-import com.squareup.kotlinpoet.joinToCode
-import java.io.File
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import java.io.File
 
 private const val PACKAGE_LITICS = "com.deliveryhero.litics"
 
@@ -76,7 +63,10 @@ private data class ParamDefinition(
 
 object EventsGenerator {
 
-    fun generate(packageName: String, sourceFile: File, targetDirectory: File) {
+    private lateinit var platform: Platform
+
+    fun generate(platform: Platform, packageName: String, sourceFile: File, targetDirectory: File) {
+        this.platform = platform
         val eventDefinitions = buildEventDefinitions(sourceFile)
         val generatedEventAnalyticsAbstractClass = ClassName(packageName, "GeneratedEventsAnalytics")
 
@@ -87,11 +77,14 @@ object EventsGenerator {
     private fun createGeneratedEventsAnalyticsFileSpec(eventDefinitions: List<EventDefinition>, generatedEventAnalyticsAbstractClass: ClassName): FileSpec {
         val funSpecs = buildFunSpecs(eventDefinitions)
 
-        val interfaceTypeSpec = TypeSpec.classBuilder(generatedEventAnalyticsAbstractClass)
-            .addModifiers(ABSTRACT)
-            .addAnnotation(ClassName("kotlin.js", "JsExport"))
-            .addFunctions(funSpecs)
-            .build()
+        val interfaceTypeSpec = with(TypeSpec.classBuilder(generatedEventAnalyticsAbstractClass)) {
+            addModifiers(ABSTRACT)
+            if (platform == Platform.JS) {
+                addAnnotation(ClassName("kotlin.js", "JsExport"))
+            }
+            addFunctions(funSpecs)
+            build()
+        }
 
         return FileSpec
             .builder(generatedEventAnalyticsAbstractClass.packageName, generatedEventAnalyticsAbstractClass.simpleName)
@@ -138,23 +131,25 @@ object EventsGenerator {
                 .build()
 
         //Make class GeneratedEventsAnalyticsImpl
-        return TypeSpec.classBuilder(generatedEventAnalyticsClass)
-            .addAnnotation(ClassName("kotlin.js", "JsExport"))
-            .primaryConstructor(constructorFunSpec)
-            .superclass(generatedEventAnalyticsAbstractClass)
-            .addProperty(eventTrackersPropertySpec)
-            .addFunctions(funImplSpecs)
-            .build()
+        return with(TypeSpec.classBuilder(generatedEventAnalyticsClass)) {
+            if (platform == Platform.JS) {
+                addAnnotation(ClassName("kotlin.js", "JsExport"))
+            }
+            primaryConstructor(constructorFunSpec)
+            superclass(generatedEventAnalyticsAbstractClass)
+            addProperty(eventTrackersPropertySpec)
+            addFunctions(funImplSpecs)
+            build()
+        }
     }
 
     private fun buildFunSpecs(eventDefinitions: List<EventDefinition>): List<FunSpec> {
-        return eventDefinitions
-            .map { eventDefinition ->
-                val interfaceFunParamsSpecs = eventDefinition.parameters
-                    .map { paramDefinition -> buildParamSpec(paramDefinition, canAddDefault = true) }
+        return eventDefinitions.map { eventDefinition ->
+            val interfaceFunParamsSpecs = eventDefinition.parameters
+                .map { paramDefinition -> buildParamSpec(paramDefinition, canAddDefault = true) }
 
-                buildFuncSpec(eventDefinition.methodName, eventDefinition.methodDoc, interfaceFunParamsSpecs)
-            }
+            buildFuncSpec(eventDefinition.methodName, eventDefinition.methodDoc, interfaceFunParamsSpecs)
+        }
     }
 
 

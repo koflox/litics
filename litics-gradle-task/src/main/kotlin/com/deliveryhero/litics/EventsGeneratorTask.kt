@@ -8,7 +8,16 @@ import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.TaskAction
 
+@Suppress("unused")
+enum class Platform {
+    JVM,
+    JS,
+}
+
 abstract class EventsGeneratorTask : DefaultTask() {
+
+    @Input
+    lateinit var platform: Platform
 
     @Input
     lateinit var packageName: String
@@ -20,5 +29,6 @@ abstract class EventsGeneratorTask : DefaultTask() {
     lateinit var targetDirectory: File
 
     @TaskAction
-    fun generate() = EventsGenerator.generate(packageName, sourceFile, targetDirectory)
+    fun generate(): Unit = EventsGenerator.generate(platform, packageName, sourceFile, targetDirectory)
 }
+
